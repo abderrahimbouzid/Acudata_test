@@ -1,0 +1,380 @@
+# Multi-Tenant SaaS - RAG Chat Application
+
+![Python](https://img.shields.io/badge/Python-3.10+-blue)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.109.0-green)
+![Streamlit](https://img.shields.io/badge/Streamlit-1.30.0-red)
+
+A production-ready multi-tenant SaaS application that provides an AI-powered chat interface for different clients using RAG (Retrieval-Augmented Generation). Each client's data is completely isolated, ensuring privacy and security.
+
+## 🚀 Quick Start
+
+```bash
+# 1. Navigate to project
+cd test_technique_saas
+
+# 2. Create and activate virtual environment
+python -m venv venv
+venv\Scripts\activate  # Windows
+# source venv/bin/activate  # Linux/Mac
+
+# 3. Install dependencies
+pip install -r requirements.txt
+
+# 4. Setup Supabase (see Supabase Setup section)
+
+# 5. Generate sample data
+python setup_files.py
+
+# 6. Check available Gemini models and update main.py line 23
+python check_gen.py
+
+# 7. Ingest documents
+python ingest.py
+
+# 8. Start backend (Terminal 1)
+uvicorn main:app --reload
+
+# 9. Start frontend (Terminal 2)
+streamlit run app_ui.py
+```
+
+Access the app at `http://localhost:8501`
+
+## 🏗️ Technology Stack
+
+### Backend
+- **FastAPI** - Modern, high-performance Python web framework for building APIs
+- **Uvicorn** - Lightning-fast ASGI server for running FastAPI
+- **Python 3.10+** - Core programming language
+
+### Frontend
+- **Streamlit** - Rapid web app framework for data science and ML applications
+
+### AI & Machine Learning
+- **Google Gemini** - Large Language Model for text generation and embeddings
+  - `gemini-embedding-001` - For converting text to vector embeddings
+  - `gemini-2.5-flash` or `gemini-1.5-flash` - For generating responses
+- **LangChain** - Framework for developing LLM-powered applications
+  - `langchain-google-genai` - Google Gemini integration
+  - `langchain-community` - Community-contributed integrations
+  - `langchain-core` - Core LangChain abstractions
+
+### Database & Vector Store
+- **Supabase** - Open-source Firebase alternative (PostgreSQL-based)
+- **pgvector** - PostgreSQL extension for vector similarity search
+- **PostgreSQL** - Relational database with JSONB support for metadata
+
+### Utilities
+- **python-dotenv** - Environment variable management from .env files
+- **tiktoken** - Tokenization library for counting tokens
+- **google-generativeai** - Official Google AI Python SDK
+
+## 📋 Features
+
+- ✅ **Multi-Tenant Isolation**: Each client's data is isolated using tenant metadata filtering
+- ✅ **RAG-Based Chat**: Uses Retrieval-Augmented Generation for accurate, context-aware answers
+- ✅ **Vector Search**: Semantic search using Supabase vector store with Google Gemini embeddings
+- ✅ **API Key Authentication**: Simple API key-based tenant identification
+- ✅ **Responsive UI**: Clean Streamlit-based chat interface
+- ✅ **Source Attribution**: Shows which documents were used to generate answers
+
+## 📁 Project Structure
+
+```
+test_technique_saas/
+├── main.py              # FastAPI backend with /chat endpoint
+├── app_ui.py            # Streamlit frontend
+├── ingest.py            # Document ingestion script
+├── check_models.py      # Utility to check available AI models
+├── setup_files.py       # Script to generate sample data
+├── requirements.txt     # Python dependencies
+├── data/                # Sample documents
+│   ├── client_A/
+│   │   ├── docA1.txt   # Procédure résiliation
+│   │   └── docA2.txt   # Produit RC Pro A
+│   └── client_B/
+│       ├── docB1.txt   # Procédure sinistre
+│       └── docB2.txt   # Produit RC Pro B
+└── README.md           # This file
+```
+
+## 🔧 Prerequisites
+
+- Python 3.10+
+- Supabase account (with vector store extension enabled)
+- Google Cloud account with Generative AI API enabled
+
+## 📦 Installation
+
+### 1. Clone and Navigate to Project
+
+```bash
+cd test_technique_saas
+```
+
+### 2. Create Virtual Environment
+
+```bash
+python -m venv venv
+```
+
+**Activate the virtual environment:**
+- Windows: `venv\Scripts\activate`
+- Linux/Mac: `source venv/bin/activate`
+
+### 3. Install Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### 4. Configure Environment Variables
+
+**⚠️ Important Note:** For this demo, the `.env` file is included in the repository to help you run the app quickly. **In a real production project, `.env` should NEVER be committed to version control.** Instead, a `.env.example` file would be provided with placeholder values.
+
+The `.env` file is already included with working credentials:
+
+```env
+SUPABASE_URL=your_supabase_url
+SUPABASE_KEY=your_supabase_service_role_key
+GOOGLE_API_KEY=your_google_api_key
+```
+
+**For production projects:**
+1. Add `.env` to `.gitignore`
+2. Create `.env.example` with placeholder values
+3. Share credentials securely through a password manager or secrets management system
+
+## 🗄️ Supabase Setup
+
+1. Create a new Supabase project
+2. Enable the `pgvector` extension in the Supabase SQL editor:
+
+```sql
+CREATE EXTENSION IF NOT EXISTS vector;
+```
+
+3. Create the documents table:
+
+```sql
+CREATE TABLE documents (
+  id BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+  content TEXT NOT NULL,
+  metadata JSONB,
+  embedding vector(768)
+);
+
+-- Create index for vector similarity search
+CREATE INDEX ON documents USING ivfflat (embedding vector_cosine_ops);
+```
+
+4. Create the match_documents function:
+
+```sql
+CREATE OR REPLACE FUNCTION match_documents (
+  query_embedding vector(768),
+  tenant_filter text,
+  match_count int DEFAULT 3
+)
+RETURNS TABLE (
+  id bigint,
+  content text,
+  metadata jsonb,
+  similarity float
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT
+    documents.id,
+    documents.content,
+    documents.metadata,
+    1 - (documents.embedding <=> query_embedding) AS similarity
+  FROM documents
+  WHERE documents.metadata->>'tenant' = tenant_filter
+  ORDER BY documents.embedding <=> query_embedding
+  LIMIT match_count;
+END;
+$$;
+```
+
+## 🎯 How to Run the Project
+
+### 1. Generate Sample Data
+
+Run the setup script to create sample data files:
+
+```bash
+python setup_files.py
+```
+
+### 2. Check Available Gemini Models
+
+Verify your Google AI API is working and see available models:
+
+```bash
+python check_gen.py
+```
+
+Copy one of the model names from the output (e.g., `models/gemini-1.5-flash`) and update line 23 in `main.py`:
+
+```python
+llm = genai.GenerativeModel('models/gemini-1.5-flash')  # Use model name from check_gen.py
+```
+
+### 3. Ingest Documents
+
+Load documents into the Supabase vector store:
+
+```bash
+python ingest.py
+```
+
+### 4. Start the Backend
+
+```bash
+uvicorn main:app --reload
+```
+
+The API will be available at `http://127.0.0.1:8000`
+
+**Verify it's working:**
+- Open `http://127.0.0.1:8000/` - Should show: `{"status": "ok"}`
+- Open `http://127.0.0.1:8000/models` - Shows available Gemini models
+- Open `http://127.0.0.1:8000/docs` - Interactive API documentation
+
+### 5. Start the Frontend
+
+In a new terminal (keep backend running):
+
+```bash
+streamlit run app_ui.py
+```
+
+The UI will open at `http://localhost:8501`
+
+## 🏛️ Architecture Overview
+
+```
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│  Streamlit UI   │────▶│   FastAPI       │────▶│  Supabase       │
+│  (Frontend)     │     │   (Backend)     │     │  (Vector Store) │
+└─────────────────┘     └─────────────────┘     └─────────────────┘
+                              │
+                              ▼
+                        ┌─────────────────┐
+                        │  Google Gemini  │
+                        │  (Embeddings +  │
+                        │   Generation)   │
+                        └─────────────────┘
+```
+
+### How It Works
+
+1. **User Query**: User enters a question in Streamlit UI with their API key
+2. **Authentication**: FastAPI validates the API key and identifies the tenant
+3. **Embedding**: Query is converted to a vector using Google Gemini embeddings
+4. **Vector Search**: Supabase searches for similar documents (filtered by tenant)
+5. **Context Retrieval**: Top 3 relevant documents are retrieved
+6. **Answer Generation**: Gemini generates an answer using only the retrieved context
+7. **Response**: Answer and sources are returned to the user
+
+## 📚 API Documentation
+
+### POST /chat
+
+Ask a question to the chat endpoint.
+
+**Headers:**
+- `X-API-KEY`: Tenant API key (`tenantA_key` or `tenantB_key`)
+
+**Request Body:**
+```json
+{
+  "query": "Votre question ici"
+}
+```
+
+**Response:**
+```json
+{
+  "answer": "Réponse générée...",
+  "sources": ["docA1.txt"]
+}
+```
+
+### GET /models
+
+List all available Gemini models for text generation.
+
+**Response:**
+```json
+{
+  "models": [
+    "models/gemini-1.5-flash",
+    "models/gemini-1.5-pro"
+  ]
+}
+```
+
+### GET /docs
+
+Interactive OpenAPI documentation available at `http://127.0.0.1:8000/docs`
+
+## 🧪 Testing Multi-Tenant Isolation
+
+For detailed testing instructions, see [SETUP_AND_TESTING.md](SETUP_AND_TESTING.md)
+
+### Quick Test
+
+Use these API keys to test multi-tenancy:
+
+| Tenant   | API Key         |
+|----------|-----------------|
+| Client A | `tenantA_key`   |
+| Client B | `tenantB_key`   |
+
+Each tenant will only see their own documents in the search results.
+
+**Critical Test**: Ask both tenants "Quelle est l'adresse mail pour les sinistres ?" - they should get different email addresses, proving data isolation works.
+
+## 🔒 Security Considerations
+
+⚠️ **Important**: This is a demonstration project. For production:
+
+1. **API Keys**: Move hardcoded API keys to environment variables or a database
+2. **Authentication**: Implement proper authentication (JWT, OAuth2)
+3. **Rate Limiting**: Add rate limiting to prevent abuse
+4. **Input Validation**: Add proper input validation and sanitization
+5. **Error Handling**: Implement comprehensive error handling and logging
+6. **HTTPS**: Ensure all connections use HTTPS
+
+## 📦 Dependencies Overview
+
+### Core Framework
+- **fastapi** - Modern, fast web framework for building APIs
+- **uvicorn** - ASGI server for running FastAPI applications
+- **streamlit** - Framework for building data apps
+
+### AI & ML
+- **langchain** (0.1.20) - Framework for LLM applications
+- **langchain-google-genai** - Google Gemini integration for LangChain
+- **langchain-community** (0.0.38) - Community integrations
+- **google-generativeai** - Official Google AI SDK
+- **tiktoken** - Token counting for OpenAI models
+
+### Database
+- **supabase** - Supabase Python client
+
+### Utilities
+- **python-dotenv** - Load environment variables from .env files
+- **pydantic** - Data validation using Python type annotations
+
+## 📄 License
+
+This project is provided as-is for demonstration purposes.
+
+## 📞 Support
+
+For detailed setup and testing instructions, refer to [SETUP_AND_TESTING.md](SETUP_AND_TESTING.md)

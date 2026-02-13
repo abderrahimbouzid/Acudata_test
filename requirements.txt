@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+streamlit
+supabase
+langchain==0.1.20
+langchain-community==0.0.38
+langchain-google-genai
+python-dotenv
+tiktoken
+google-generativeai
