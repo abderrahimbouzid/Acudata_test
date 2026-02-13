@@ -32,20 +32,22 @@ pip install -r requirements.txt
 
 ### 4. Configure Environment Variables
 
-**Note:** For this demo, the `.env` file is included in the repository to help you run the app quickly. In a real production project, `.env` should NEVER be committed to version control. Instead, a `.env.example` file would be provided with placeholder values.
+Copy the `.env.example` file to `.env` and fill in your credentials:
 
-The `.env` file is already included with working credentials:
+```bash
+cp .env.example .env  # Linux/Mac
+copy .env.example .env  # Windows
+```
+
+Then edit `.env` with your actual credentials:
 
 ```env
-SUPABASE_URL=your_supabase_url
+SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_KEY=your_supabase_service_role_key
 GOOGLE_API_KEY=your_google_api_key
 ```
 
-**For production projects, you would:**
-1. Add `.env` to `.gitignore`
-2. Create `.env.example` with placeholder values
-3. Share credentials securely through a password manager or secrets management system
+**Important:** The `.env` file is in `.gitignore` and will not be committed to version control.
 
 ### 5. Setup Supabase Database
 
